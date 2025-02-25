@@ -1,0 +1,44 @@
+[gd_scene load_steps=2 format=3 uid="uid://bg7wtx1p7tec7"]
+
+[ext_resource type="Script" path="res://Node2D.cs" id="1_17dk6"]
+
+[node name="Node2D" type="Node2D"]
+position = Vector2(-6, 6)
+script = ExtResource("1_17dk6")
+
+[node name="Control" type="Control" parent="."]
+layout_mode = 3
+anchors_preset = 0
+offset_left = 371.0
+offset_top = 569.0
+offset_right = 411.0
+offset_bottom = 609.0
+
+[node name="StartButton" type="Button" parent="Control"]
+layout_mode = 0
+offset_left = 469.0
+offset_top = 571.0
+offset_right = 690.0
+offset_bottom = 626.0
+
+[node name="StatusLabel" type="Label" parent="Control"]
+layout_mode = 0
+offset_left = 134.0
+offset_top = -472.0
+offset_right = 399.0
+offset_bottom = -384.0
+
+[node name="Label" type="Label" parent="Control/StatusLabel"]
+layout_mode = 0
+offset_left = 97.0
+offset_top = 580.0
+offset_right = 143.0
+offset_bottom = 606.0
+text = "Start"
+
+[node name="SensitivitySlider" type="HSlider" parent="Control"]
+layout_mode = 0
+offset_left = 145.0
+offset_top = -4.0
+offset_right = 312.0
+offset_bottom = 12.0
