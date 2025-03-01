@@ -1,10 +1,10 @@
 [gd_scene load_steps=2 format=3 uid="uid://bg7wtx1p7tec7"]
 
-[ext_resource type="Script" path="res://Node2D.cs" id="1_17dk6"]
+[ext_resource type="Script" path="res://node_2d.cs" id="1_tjkvw"]
 
 [node name="Node2D" type="Node2D"]
 position = Vector2(-6, 6)
-script = ExtResource("1_17dk6")
+script = ExtResource("1_tjkvw")
 
 [node name="Control" type="Control" parent="."]
 layout_mode = 3
