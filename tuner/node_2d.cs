@@ -2,18 +2,16 @@ using Godot;
 using System;
 using System.Linq;
 using System.Collections.Generic;
+using PortAudioSharp;
 
 public partial class node_2d : Node2D
 {
-	private AudioStreamMicrophone _microphone;
-	private AudioEffectCapture _audioCapture;
-	private AudioStreamPlayer _micPlayer;
 	private Label _statusLabel;
 	private float sensitivityThreshold = 0.05f;
 	private const int BufferSize = 2048;
 	private List<float> _detectedFrequencies = new List<float>();
 	private const int FrequencyHistoryLength = 10;
-
+	private PortAudioStream _stream;
 	private readonly Dictionary<string, float> _standardTuning = new Dictionary<string, float>
 	{
 		{"E2", 82.41f}, {"A2", 110.00f}, {"D3", 146.83f},
@@ -26,78 +24,37 @@ public partial class node_2d : Node2D
 		var sensitivitySlider = GetNode<Slider>("Control/SensitivitySlider");
 		sensitivitySlider.ValueChanged += OnSensitivityChanged;
 		sensitivitySlider.Value = sensitivityThreshold;
-
-		_microphone = new AudioStreamMicrophone();
-		_micPlayer = new AudioStreamPlayer();
-		_micPlayer.Stream = _microphone;
-		_micPlayer.Bus = "AC";
-		AddChild(_micPlayer);
-		_micPlayer.Play();
-
-		int acBusIndex = AudioServer.GetBusIndex("AC");
-		if (acBusIndex == -1)
-		{
-			GD.PrintErr("Аудиобас AC не найден! Используется 0.");
-			acBusIndex = 0;
-		}
-
-		bool hasCaptureEffect = false;
-		for (int i = 0; i < AudioServer.GetBusEffectCount(acBusIndex); i++)
-		{
-			if (AudioServer.GetBusEffect(acBusIndex, i) is AudioEffectCapture)
-			{
-				hasCaptureEffect = true;
-				_audioCapture = (AudioEffectCapture)AudioServer.GetBusEffect(acBusIndex, i);
-				break;
-			}
-		}
-
-		if (!hasCaptureEffect)
-		{
-			_audioCapture = new AudioEffectCapture();
-			AudioServer.AddBusEffect(acBusIndex, _audioCapture);
-		}
-
-		AudioServer.SetBusMute(acBusIndex, true);
+		
+		PortAudio.Initialize();
+		_stream = new PortAudioStream(1, 0, 44100, BufferSize, PortAudioDeviceIndex.DefaultInput);
+		_stream.Start();
 	}
 
 	public override void _Process(double delta)
 	{
-		if (_audioCapture == null || !_audioCapture.CanGetBuffer(256))
-			return;
-
-		Vector2[] stereoBuffer = _audioCapture.GetBuffer(256);
-		float[] audioBuffer = new float[stereoBuffer.Length];
-		for (int i = 0; i < stereoBuffer.Length; i++)
-		{
-			audioBuffer[i] = (stereoBuffer[i].X + stereoBuffer[i].Y) / 2f;
-		}
+		float[] audioBuffer = new float[BufferSize];
+		int framesRead = _stream.Read(audioBuffer, BufferSize);
+		if (framesRead == 0) return;
 
 		float frequency = DetectFrequency(audioBuffer);
-
 		if (frequency > 80f && frequency < 400f)
 		{
 			_detectedFrequencies.Add(frequency);
 			if (_detectedFrequencies.Count > FrequencyHistoryLength)
 				_detectedFrequencies.RemoveAt(0);
-
+			
 			var repeatingFrequency = GetMostFrequentFrequency();
 			if (repeatingFrequency != -1)
 			{
 				var nearestString = GetNearestString(repeatingFrequency);
-				_statusLabel.Text = $"Частота: {repeatingFrequency:F2} Гц, струна: {nearestString.Key} ({nearestString.Value:F2} Гц)";
+				float deviation = repeatingFrequency - nearestString.Value;
+				string tuningStatus = deviation > 0 ? "(Повышена)" : deviation < 0 ? "(Понижена)" : "(Точно)";
+				_statusLabel.Text = $"Частота: {repeatingFrequency:F2} Гц, струна: {nearestString.Key} ({nearestString.Value:F2} Гц) {tuningStatus}";
 			}
 			else
 			{
 				_statusLabel.Text = $"Текущая частота: {frequency:F2} Гц (Частота нестабильна)";
 			}
-		}
-		else
-		{
-			float minValue = audioBuffer.Min();
-			float maxValue = audioBuffer.Max();
-			float avgValue = audioBuffer.Average();
-			_statusLabel.Text = $"Текущая частота: {frequency:F2} Гц | Амплитуда: мин {minValue:F2}, макс {maxValue:F2}, ср {avgValue:F2}";
 		}
 	}
 
@@ -117,7 +74,6 @@ public partial class node_2d : Node2D
 				peakIndex = i;
 			}
 		}
-
 		return peakIndex * sampleRate / (float)bufferSize;
 	}
 
@@ -136,5 +92,12 @@ public partial class node_2d : Node2D
 	private void OnSensitivityChanged(double newValue)
 	{
 		sensitivityThreshold = (float)newValue;
+	}
+
+	public override void _ExitTree()
+	{
+		_stream.Stop();
+		_stream.Dispose();
+		PortAudio.Terminate();
 	}
 }
