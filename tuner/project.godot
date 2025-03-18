@@ -17,7 +17,9 @@ config/icon="res://icon.svg"
 
 [audio]
 
+driver/driver="ALSA"
 driver/enable_input=true
+driver/mix_rate=44099
 
 [dotnet]
 
